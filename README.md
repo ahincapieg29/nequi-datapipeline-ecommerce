@@ -87,6 +87,8 @@ Para analizar un dataset de más de **66 millones de registros**, se utilizó **
 
 Se tomó una muestra aleatoria de aproximadamente **1.5 millones de registros** (~2.3% del total), lo que permitió realizar un **análisis exploratorio eficiente** preservando la diversidad de tipos de eventos, productos y usuarios.
 
+El análisis exploratorio se realizó utilizando PySpark y se documentó en el notebook notebooks/eda.ipynb.
+
 ---
 
 ### 🔍 Exploración: Calidad de los Datos
