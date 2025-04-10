@@ -81,10 +81,6 @@ Este proyecto representa una solución de datos para un **eCommerce** que busca 
 
 ---
 
-¡Entendido! Aquí tienes el **Paso 2 del README** reescrito para que las acciones de limpieza aparezcan como **sugerencias fundamentadas**, no como pasos que ya se aplicaron. Además, mantengo el enfoque técnico y profesional, ideal para tu prueba técnica de Nequi:
-
----
-
 ## 📊 Paso 2: Exploración y Evaluación de Datos (EDA)
 
 Para analizar un dataset de más de **66 millones de registros**, se utilizó **PySpark** como motor de procesamiento distribuido. Gracias a su escalabilidad, se pudieron ejecutar transformaciones complejas y validaciones sin saturar el entorno de desarrollo.
