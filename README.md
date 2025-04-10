@@ -91,7 +91,7 @@ La base de datos transaccional se diseñó utilizando un modelo **normalizado** 
 **Entidades principales (PK y FK):**
 
 - **USERS**  
-  - `user_id` (PK.)  
+  - `user_id` (PK)  
   - `name`  
   - `email`  
   - `created_at`  
