@@ -15,7 +15,7 @@ Este ejercicio simula, a partir de un conjunto de datos de ejemplo descargado de
 ### 📁 Dataset
 
 - **Nombre:** eCommerce behavior data from multi category store  
-- **Fuente:** Kaggle  
+- **Fuente:** [Kaggle - eCommerce behavior data](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store) 
 - **Archivo utilizado:** `2020-Apr.csv.gz`  
 - **Tamaño:** 66.589.268 registros  
 - **Formato:** CSV comprimido (.gz)  
