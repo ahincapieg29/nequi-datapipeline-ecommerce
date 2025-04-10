@@ -81,23 +81,94 @@ Este proyecto representa una solución de datos para un **eCommerce** que busca 
 
 ---
 
+¡Entendido! Aquí tienes el **Paso 2 del README** reescrito para que las acciones de limpieza aparezcan como **sugerencias fundamentadas**, no como pasos que ya se aplicaron. Además, mantengo el enfoque técnico y profesional, ideal para tu prueba técnica de Nequi:
+
+---
+
 ## 📊 Paso 2: Exploración y Evaluación de Datos (EDA)
 
-Se realizó un análisis exploratorio en el notebook [`notebooks/eda.ipynb`](notebooks/eda.ipynb), donde se identificaron las siguientes observaciones:
+Para analizar un dataset de más de **66 millones de registros**, se utilizó **PySpark** como motor de procesamiento distribuido. Gracias a su escalabilidad, se pudieron ejecutar transformaciones complejas y validaciones sin saturar el entorno de desarrollo.
 
-### 🚨 Problemas detectados:
-- Valores nulos en `brand` y `category_code`
-- Algunos precios `0` o negativos
-- Eventos `remove_from_cart` muy escasos
-- Variación alta en frecuencia de usuarios
-- Sesiones con múltiples eventos duplicados
+Se tomó una muestra aleatoria de aproximadamente **1.5 millones de registros** (~2.3% del total), lo que permitió realizar un **análisis exploratorio eficiente** preservando la diversidad de tipos de eventos, productos y usuarios.
 
-### 🧼 Estrategia de limpieza:
-- Eliminar duplicados exactos
-- Imputar `brand` o `category_code` solo si representan < 5%
-- Convertir `event_time` a timestamp y generar campos derivados (día, hora, etc.)
-- Filtrar productos con precio no válido
-- Validación cruzada de relaciones (user-session-event)
+---
+
+### 🔍 Exploración: Calidad de los Datos
+
+#### 📌 A. Valores Nulos Detectados
+
+| Columna          | Valores Nulos |
+|------------------|----------------|
+| `brand`          | 205,961        |
+| `category_code`  | 155,385        |
+| `user_session`   | 2              |
+| Resto de columnas| 0              |
+
+#### 📌 B. Registros Duplicados
+
+- Total registros: **1,531,767**
+- Registros únicos: **1,531,619**
+- **Duplicados detectados:** 148
+
+#### 📌 C. Valores Únicos por Columna
+
+- `user_id`: 892,389
+- `product_id`: 124,922
+- `brand`: 3,661
+- `category_code`: 139
+- `event_time`: 1,085,863
+- `user_session`: 1,281,641
+
+#### 📌 D. Tipos de Evento
+
+| Tipo de evento | Registros |
+|----------------|-----------|
+| `view`         | 1,434,849 |
+| `cart`         | 74,880    |
+| `purchase`     | 22,038    |
+
+→ Representación típica del embudo de conversión eCommerce: vistas > carritos > compras.
+
+#### 📌 E. Estadísticas del Precio
+
+| Métrica   | Valor       |
+|-----------|-------------|
+| Count     | 1,531,767   |
+| Media     | $273.11     |
+| Desviación estándar | $356.13 |
+| Mínimo    | $0.00       |
+| Máximo    | $2,574.07   |
+
+---
+
+### 🧼 Sugerencias para la Limpieza de Datos
+
+A partir de los hallazgos previos, se proponen las siguientes estrategias de limpieza para mejorar la calidad de los datos antes del modelado:
+
+1. **Conversión de tipos**
+   - Convertir `event_time` a `timestamp` con zona horaria UTC.
+   - Tipificar `event_type` como variable categórica controlada (`view`, `cart`, `purchase`).
+
+2. **Eliminación de duplicados**
+   - Remover registros completamente duplicados (idénticos en todas las columnas).
+
+3. **Tratamiento de valores nulos**
+   - Imputar `brand` y `category_code` con `"unknown"` cuando el porcentaje de nulos por categoría sea bajo (<5%).
+   - Omitir registros con `user_session` nulo (2 casos identificados).
+
+4. **Filtrado de precios inválidos**
+   - Excluir registros con precio igual a 0 o negativo, ya que no representan comportamiento válido.
+
+5. **Verificación de relaciones lógicas**
+   - Validar consistencia entre `user_id`, `user_session` y secuencia de `event_type`.
+   - Confirmar flujos completos del embudo de conversión en sesiones (`view → cart → purchase`).
+
+---
+
+### 🧪 Justificación del Muestreo y Uso de PySpark
+
+- 🧠 **Muestreo controlado (~1.5M filas)**: permite acelerar el desarrollo local sin sacrificar representatividad estadística.
+- 🔥 **PySpark**: motor de procesamiento distribuido ideal para trabajar con datasets a gran escala como el original (66M+ registros), habilitando limpieza, transformación y análisis eficiente sobre AWS Glue u otros entornos.
 
 ---
 
