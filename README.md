@@ -1,3 +1,7 @@
+# 🛒 eCommerce Data Pipeline
+
+Diseño e implementación de un pipeline moderno de datos en AWS para capturar, procesar y analizar eventos de comportamiento de usuarios en una tienda de comercio electrónico.
+
 ## 🧩 Paso 1: Alcance del Proyecto y Captura de Datos
 
 ### 🎯 Objetivo
@@ -28,6 +32,9 @@ Este ejercicio simula, a partir de un conjunto de datos de ejemplo descargado de
 - `price`: Precio del producto  
 - `user_id`: ID anónimo del usuario  
 - `user_session`: ID de la sesión de navegación  
+
+📌 *Limitaciones conocidas:*  
+El dataset solo representa un mes de eventos, y las sesiones de usuario son anónimas. No incluye datos de usuarios autenticados ni eventos offline.
 
 ---
 
@@ -71,6 +78,26 @@ Este proyecto representa una solución de datos para un **eCommerce** que busca 
 - Clustering de productos por interacción y conversión  
 - Modelos de propensión al abandono de carrito  
 - Sistemas de recomendación personalizados  
+
+---
+
+## 📊 Paso 2: Exploración y Evaluación de Datos (EDA)
+
+Se realizó un análisis exploratorio en el notebook [`notebooks/eda.ipynb`](notebooks/eda.ipynb), donde se identificaron las siguientes observaciones:
+
+### 🚨 Problemas detectados:
+- Valores nulos en `brand` y `category_code`
+- Algunos precios `0` o negativos
+- Eventos `remove_from_cart` muy escasos
+- Variación alta en frecuencia de usuarios
+- Sesiones con múltiples eventos duplicados
+
+### 🧼 Estrategia de limpieza:
+- Eliminar duplicados exactos
+- Imputar `brand` o `category_code` solo si representan < 5%
+- Convertir `event_time` a timestamp y generar campos derivados (día, hora, etc.)
+- Filtrar productos con precio no válido
+- Validación cruzada de relaciones (user-session-event)
 
 ---
 
@@ -174,6 +201,8 @@ Una vez en S3, se aplica un proceso ETL para construir un modelo de datos orient
 | Visualización              | Amazon QuickSight, Power BI         | Integración directa con Athena y Redshift                           |
 | Formato de almacenamiento  | Parquet                             | Columnar, comprimido, altamente eficiente en análisis               |
 
+Ver arquitectura: [`architecture/architecture.png`](architecture/architecture.png)
+
 ---
 
 ### 🔁 Frecuencia de Actualización Recomendada
@@ -199,3 +228,19 @@ Esta arquitectura permite:
 - Evolucionar fácilmente hacia Redshift o Snowflake si la carga lo requiere  
 
 La solución cumple con las mejores prácticas de AWS para arquitectura analítica moderna, aplicando herramientas serverless, formatos columnarizados, y un modelo escalable sin dependencias innecesarias.
+
+## 🧩 Paso 4: Construcción del ETL
+
+Estructurado en módulos:
+
+```bash
+src/
+├── etl/
+│   ├── extract.py
+│   ├── transform.py
+│   └── load.py
+├── utils/
+│   ├── logger.py          # Configuración central de logs
+│   └── exceptions.py      # Manejo de errores
+└── config/
+    └── settings.py        # Paths y parámetros globales
