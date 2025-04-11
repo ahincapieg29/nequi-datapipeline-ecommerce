@@ -338,30 +338,6 @@ App móvil → Aurora PostgreSQL
               ↓
 Athena / QuickSight / Power BI
 ```
-
----
-
-## 🧾 Modelo OLTP en Aurora PostgreSQL
-
-El modelo relacional de origen en Aurora PostgreSQL está totalmente normalizado. Las tablas relevantes para el pipeline ETL incluyen:
-
-### 🎯 EVENTOS (`event_id`)
-- Relaciona sesiones, productos y usuarios
-- Contiene `event_type` (ENUM: `view`, `cart`, `purchase`), `event_time`, `price`
-
-### 📲 SESIONES (`session_id`)
-- Asociadas a un `user_id`
-- Incluye dispositivo, canal, `started_at`
-
-### 🛍️ PRODUCTOS (`product_id`)
-- Relaciona categorías y marcas
-- Contiene `price`, `stock`, etc.
-
-### 🧑‍💼 USUARIOS (`user_id`)
-- Datos básicos: `name`, `email`, `created_at`
-
-Este modelo permite trazar todo el flujo desde el usuario hasta la compra, y es replicado vía **AWS DMS (CDC)** hacia la capa `raw/` en S3.
-
 ---
 
 ## 🔁 Frecuencia de Procesamiento
