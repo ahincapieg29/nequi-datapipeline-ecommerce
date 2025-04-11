@@ -87,7 +87,11 @@ Para analizar un dataset de más de **66 millones de registros**, se utilizó **
 
 Se tomó una muestra aleatoria de aproximadamente **1.5 millones de registros** (~2.3% del total), lo que permitió realizar un **análisis exploratorio eficiente** preservando la diversidad de tipos de eventos, productos y usuarios.
 
-El análisis exploratorio se realizó utilizando PySpark y se documentó en el notebook notebooks/eda.ipynb.
+El análisis exploratorio se realizó utilizando PySpark y se documentó en el notebook 
+
+```
+/notebooks/eda.ipynb.
+```
 
 ---
 
@@ -193,7 +197,7 @@ La base de datos transaccional se diseñó utilizando un modelo **normalizado** 
   - `created_at`  
 
 - **PRODUCTS**  
-  - `product_id` (PK.)  
+  - `product_id` (PK)  
   - `name`  
   - `brand_id` (FK → BRANDS.brand_id)  
   - `category_id` (FK → CATEGORIES.category_id)  
@@ -201,23 +205,23 @@ La base de datos transaccional se diseñó utilizando un modelo **normalizado** 
   - `stock`  
 
 - **CATEGORIES**  
-  - `category_id` (PK.)  
+  - `category_id` (PK)  
   - `category_name`  
   - `parent_id` (FK → CATEGORIES.category_id)  
 
 - **BRANDS**  
-  - `brand_id` (PK.)  
+  - `brand_id` (PK)  
   - `brand_name`  
 
 - **SESSIONS**  
-  - `session_id` (PK.)  
+  - `session_id` (PK)  
   - `user_id` (FK → USERS.user_id)  
   - `device_type`  
   - `channel`  
   - `started_at`  
 
 - **EVENTS**  
-  - `event_id` (PK.)  
+  - `event_id` (PK)  
   - `session_id` (FK → SESSIONS.session_id)  
   - `product_id` (FK → PRODUCTS.product_id)  
   - `event_type` (ENUM: view, cart, purchase)  
@@ -269,8 +273,6 @@ Una vez en S3, se aplica un proceso ETL para construir un modelo de datos orient
 | Consulta analítica         | Amazon Athena                       | SQL serverless, bajo costo, ideal para exploración y BI             |
 | Visualización              | Amazon QuickSight, Power BI         | Integración directa con Athena y Redshift                           |
 | Formato de almacenamiento  | Parquet                             | Columnar, comprimido, altamente eficiente en análisis               |
-
-Ver arquitectura: [`architecture/architecture.png`](architecture/architecture.png)
 
 ---
 
