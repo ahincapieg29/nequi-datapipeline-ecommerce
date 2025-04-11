@@ -251,7 +251,7 @@ Una vez en S3, se aplica un proceso ETL para construir un modelo de datos orient
 
 - **Dimensiones:**  
   - `dim_users`: Perfil de usuario  
-  - `dim_time`: Calendario  
+  - `dim_products`: Productos  
 
 **Capas del Data Lake en S3:**
 
