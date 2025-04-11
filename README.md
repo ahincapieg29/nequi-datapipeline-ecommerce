@@ -276,16 +276,33 @@ Una vez en S3, se aplica un proceso ETL para construir un modelo de datos orient
 
 ---
 
+Perfecto, aquí tienes la sección actualizada del README con una **propuesta de actualización cada hora**, ideal para balancear **costo, rendimiento y frescura** de los datos tanto para BI como Ciencia de Datos:
+
+---
+
 ### 🔁 Frecuencia de Actualización Recomendada
 
-**Propuesta:** Actualización cada **5 minutos** mediante micro-batches.
+**Propuesta:** Actualización cada **1 hora** mediante **microlotes** para la tabla de hechos `fact_user_events`, y cargas **diarias** para dimensiones maestras (`dim_users`, `dim_products`).
 
 **Justificación:**
 
-- El volumen y frecuencia de eventos exige **frescura cuasi real-time**  
-- AWS DMS permite replicación continua desde Aurora hacia S3  
-- AWS Glue puede ejecutarse por cron o triggers automáticos en llegada de datos  
-- Tablas como `dim_users` y `dim_products` pueden actualizarse **diariamente** o bajo cambios (SCD)
+#### Para Business Intelligence (BI):
+- Una actualización **cada hora** es suficiente para:
+  - Monitorear comportamiento de usuarios en tiempo operativo
+  - Medir rendimiento de campañas activas sin necesidad de real-time
+  - Mantener dashboards ágiles con bajo costo computacional
+  - Compatible con Power BI, QuickSight y Athena (consulta sobre particiones por fecha).
+
+#### Para Ciencia de Datos (DS):
+- Cargas **diarias** permiten:
+  - Entrenamiento eficiente de modelos predictivos y análisis exploratorio
+  - Preparación de features históricas para clustering, scoring y segmentación
+  - Menor carga operativa y más estabilidad en pipelines de entrenamiento
+
+#### Capacidad técnica:
+- **AWS DMS** permite replicación continua desde Aurora PostgreSQL hacia S3 (`raw/`).
+- **AWS Glue** se puede ejecutar por cron cada hora para transformar solo los nuevos datos del día (`PROCESS_DATE=HOY`).
+- El particionado por `event_date` permite cargas y consultas optimizadas en Athena y Redshift Spectrum.
 
 ---
 
