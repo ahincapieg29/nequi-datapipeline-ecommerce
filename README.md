@@ -315,3 +315,17 @@ src/
 │   └── exceptions.py      # Manejo de errores
 └── config/
     └── settings.py        # Paths y parámetros globales
+```
+## 🧩 Paso 5: Escenarios de Escalabilidad y Arquitectura Alternativa
+
+- **📈 Si los datos crecieran 100x:**  
+  Escalaría Glue con Spark más nodos, usaria Redshift Spectrum o EMR para analítica distribuida. Controlaría particionamiento en S3 por `event_date`.
+
+- **⏱ Si las tuberías se ejecutaran diariamente en una ventana de tiempo específica:**  
+  Usaría AWS Glue triggers + workflows + monitoreo con CloudWatch y alertas por SNS.
+
+- **👥 Si más de 100 usuarios funcionales accedieran a la BD:**  
+  Implementaría Redshift + Amazon SSO + rol de acceso y políticas IAM controladas por recurso.
+
+- **⚡ Si se requiere analítica en tiempo real:**  
+  Cambiaría de arquitectura batch a **Kinesis Data Streams** + **Lambda + Firehose** + **Athena o Redshift Streaming**.
