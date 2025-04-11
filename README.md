@@ -14,6 +14,9 @@ Este ejercicio simula, a partir de un conjunto de datos de ejemplo descargado de
 
 ### 📁 Dataset
 
+Este dataset fue elegido porque simula un entorno real de eCommerce con múltiples categorías, eventos, usuarios y sesiones, lo que permite aplicar técnicas modernas de modelado de eventos, trazabilidad y construcción de embudos. Además, su volumen (66M+) lo convierte en un excelente candidato para probar escalabilidad y rendimiento en arquitectura cloud.
+En un escenario productivo, se espera que los eventos se capturen en tiempo casi real o por lotes horarios para soportar decisiones operacionales y analíticas de forma oportuna.
+
 - **Nombre:** eCommerce behavior data from multi category store  
 - **Fuente:** [Kaggle - eCommerce behavior data](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store) 
 - **Archivo utilizado:** `2020-Apr.csv.gz`  
@@ -146,6 +149,19 @@ El análisis exploratorio se realizó utilizando PySpark y se documentó en el n
 ### 🧼 Sugerencias para la Limpieza de Datos
 
 A partir de los hallazgos previos, se proponen las siguientes estrategias de limpieza para mejorar la calidad de los datos antes del modelado:
+
+Raw data (CSV) 
+    ↓
+Remove duplicates
+    ↓
+Handle nulls (brand → "unknown")
+    ↓
+Filter invalid prices
+    ↓
+Validate event logic
+    ↓
+→ Cleaned dataset
+
 
 1. **Conversión de tipos**
    - Convertir `event_time` a `timestamp` con zona horaria UTC.
