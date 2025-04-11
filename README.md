@@ -150,6 +150,7 @@ El análisis exploratorio se realizó utilizando PySpark y se documentó en el n
 
 A partir de los hallazgos previos, se proponen las siguientes estrategias de limpieza para mejorar la calidad de los datos antes del modelado:
 
+```
 Raw data (CSV) 
     ↓
 Remove duplicates
@@ -161,6 +162,7 @@ Filter invalid prices
 Validate event logic
     ↓
 → Cleaned dataset
+```
 
 
 1. **Conversión de tipos**
