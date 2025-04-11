@@ -191,13 +191,13 @@ La base de datos transaccional se diseñó utilizando un modelo **normalizado** 
 **Entidades principales (PK y FK):**
 
 - **USERS**  
-  - `user_id` (PK)  
+  - `user_id` (Primary Key)  
   - `name`  
   - `email`  
   - `created_at`  
 
 - **PRODUCTS**  
-  - `product_id` (PK)  
+  - `product_id` (Primary Key)  
   - `name`  
   - `brand_id` (FK → BRANDS.brand_id)  
   - `category_id` (FK → CATEGORIES.category_id)  
@@ -205,25 +205,25 @@ La base de datos transaccional se diseñó utilizando un modelo **normalizado** 
   - `stock`  
 
 - **CATEGORIES**  
-  - `category_id` (PK)  
+  - `category_id` (Primary Key)  
   - `category_name`  
-  - `parent_id` (FK → CATEGORIES.category_id)  
+  - `parent_id` (Foreign Key → CATEGORIES.category_id)  
 
 - **BRANDS**  
-  - `brand_id` (PK)  
+  - `brand_id` (Primary Key)  
   - `brand_name`  
 
 - **SESSIONS**  
-  - `session_id` (PK)  
-  - `user_id` (FK → USERS.user_id)  
+  - `session_id` (Primary Key)  
+  - `user_id` (Foreign Key → USERS.user_id)  
   - `device_type`  
   - `channel`  
   - `started_at`  
 
 - **EVENTS**  
-  - `event_id` (PK)  
-  - `session_id` (FK → SESSIONS.session_id)  
-  - `product_id` (FK → PRODUCTS.product_id)  
+  - `event_id` (Primary Key)  
+  - `session_id` (Foreign Key → SESSIONS.session_id)  
+  - `product_id` (Foreign Key → PRODUCTS.product_id)  
   - `event_type` (ENUM: view, cart, purchase)  
   - `event_time`  
   - `price`  
