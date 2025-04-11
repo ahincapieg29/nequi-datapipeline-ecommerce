@@ -155,7 +155,7 @@ Raw data (CSV)
     ↓
 Remove duplicates
     ↓
-Handle nulls (brand → "unknown")
+Handle nulls
     ↓
 Filter invalid prices
     ↓
@@ -292,9 +292,27 @@ Una vez en S3, se aplica un proceso ETL para construir un modelo de datos orient
 | Visualización              | Amazon QuickSight, Power BI         | Integración directa con Athena y Redshift                           |
 | Formato de almacenamiento  | Parquet                             | Columnar, comprimido, altamente eficiente en análisis               |
 
+```
+[Mobile App]
+     ↓
+[Aurora PostgreSQL] --(CDC)--> [AWS DMS]
+                                ↓
+                          [S3 - raw/]
+                                ↓
+                     [AWS Glue + PySpark]
+                                ↓
+                        [S3 - clean/model]
+                                ↓
+                            [Athena]
+                              ↓
+                   [Power BI / QuickSight ]
+```
+
+
 - AWS Glue fue elegido sobre Lambda + Step Functions porque el volumen de datos (66M+) y las transformaciones requeridas (join, filtrado, particionado) se benefician del procesamiento distribuido con PySpark.
 - Aurora PostgreSQL permite escalabilidad transaccional con réplicas, ideal para integración con CDC (Change Data Capture) usando AWS DMS.
 - S3 es el almacenamiento óptimo para un Data Lake escalable, y permite separación por capas (`raw`, `clean`, `model`) con esquemas evolutivos.
+- La solución incluye monitoreo de jobs de Glue mediante CloudWatch y validaciones de ingesta en Athena para asegurar integridad de datos en cada ciclo de actualización.
 
 ---
 
@@ -337,37 +355,30 @@ La solución cumple con las mejores prácticas de AWS para arquitectura analíti
 
 ---
 
-Perfecto, ahora te entrego **el Paso 4 completo del README**, incluyendo **todos los puntos que mencionaste**:
-
-- ✅ Scripts actualizados con capas `raw/`, `clean/` y `model/`
-- ✅ Comentarios línea por línea
-- ✅ Validaciones (nulos, unicidad, conteos, esquema)
-- ✅ Pruebas automáticas (`unittest`)
-- ✅ Tabla de ejecución en AWS Glue
-- ✅ Diccionario de datos completo
-
----
-
 # 🧩 Paso 4: Construcción del Pipeline ETL
 
-Esta etapa implementa el procesamiento de datos desde una arquitectura OLTP en Aurora PostgreSQL (vía CDC con AWS DMS) hasta un modelo analítico en S3 en formato Parquet, listo para consultas en Athena o visualizaciones en Power BI/QuickSight.
+Esta etapa implementa un pipeline escalable y modular que procesa eventos desde una base de datos OLTP en **Aurora PostgreSQL** (vía **CDC con AWS DMS**) hasta un modelo analítico en **S3** en formato **Parquet**, listo para consultas con **Athena** o visualización en **Power BI / QuickSight**.
 
-El pipeline procesa eventos de usuarios y actualiza dimensiones clave, garantizando consistencia, validaciones de calidad, y rendimiento.
+El pipeline transforma datos crudos en entidades analíticas estructuradas, incluyendo limpieza, enriquecimiento, validaciones y pruebas automatizadas para asegurar calidad y trazabilidad.
 
 ---
 
 ## 🏗️ Arquitectura Técnica
 
 ```
-App móvil → Aurora PostgreSQL
-              ↓ (CDC con AWS DMS)
-       S3 (raw/)
-              ↓ (PySpark en AWS Glue)
-       S3 (clean/)  → validaciones y limpieza
-              ↓
-       S3 (model/fact_user_events, dim_*)
-              ↓
-Athena / QuickSight / Power BI
+[App Móvil]
+     ↓
+[Aurora PostgreSQL] → [AWS DMS (CDC)]
+     ↓
+[S3 (raw/)]
+     ↓
+[AWS Glue (PySpark ETL)]
+     ↓
+[S3 (clean/)]
+     ↓
+[S3 (model/fact_user_events, dim_*)]
+     ↓
+[Athena / QuickSight / Power BI]
 ```
 
 ---
@@ -396,10 +407,10 @@ Athena / QuickSight / Power BI
 ├── quality/
 │   └── quality_checks.py               # Validaciones generales
 ├── utils/
-│   └── spark_session.py                # Instancia de Spark para Glue/local
+│   └── spark_session.py                # Instancia de Spark (Glue o local)
 ├── tests/
-│   └── unit_tests_etl.py               # Pruebas unitarias de validación
-└── run_etl.py                          # Orquestador del proceso horario
+│   └── unit_tests_etl.py               # Pruebas unitarias automatizadas
+└── run_etl.py                          # Orquestador principal del proceso horario
 ```
 
 ---
@@ -410,10 +421,10 @@ Athena / QuickSight / Power BI
 
 ```python
 """
-Ejecuta la ETL cada hora:
-1. Extrae eventos del día desde raw/
-2. Limpia, transforma y valida → guarda en clean/
-3. Carga a model/
+Ejecución principal del pipeline:
+1. Extrae eventos diarios desde S3/raw
+2. Limpia, transforma y valida datos → clean/
+3. Carga hechos en model/
 4. Compara conteos entre capas
 """
 
@@ -470,11 +481,11 @@ def extract_events():
 
 ```python
 """
-Limpia eventos, elimina duplicados, filtra precios, imputa datos,
-agrega campos temporales y guarda en capa clean/.
+Limpia eventos, elimina duplicados, filtra precios inválidos, imputa valores nulos,
+agrega columnas temporales y escribe en clean/.
 """
 
-from pyspark.sql.functions import col, hour, dayofweek
+from pyspark.sql.functions import col, hour, dayofweek, sha2, concat_ws
 from quality.quality_checks import (
     check_row_counts, check_nulls, check_uniqueness, check_schema
 )
@@ -490,8 +501,6 @@ EXPECTED_COLUMNS = [
 
 def clean_transform(df):
     logger.info("🧼 Iniciando limpieza de eventos")
-
-    # Verifica que las columnas esperadas estén presentes
     check_schema(df, EXPECTED_COLUMNS)
 
     df = df.dropDuplicates()
@@ -501,11 +510,14 @@ def clean_transform(df):
     df = df.withColumn("hour_of_day", hour("event_time")) \
            .withColumn("day_of_week", dayofweek("event_time"))
 
+    # Generación de ID único para el evento
+    df = df.withColumn("event_id", sha2(concat_ws("-", "user_id", "product_id", "event_time"), 256))
+
+    # Validaciones
     check_row_counts(df, 10000)
     check_nulls(df, ["event_time", "event_type", "user_id", "product_id"])
     check_uniqueness(df, "event_id")
 
-    # Escribe la capa clean/
     df.write.mode("overwrite").partitionBy("event_date").parquet("s3://ecommerce-lake/clean/events/")
     logger.info("📤 Datos limpios escritos en clean/")
     return df
@@ -537,7 +549,7 @@ def load_events(df):
 
 ```python
 """
-Carga diaria de dim_users y dim_products desde capa clean/.
+Carga diaria de dimensiones desde clean/ → model/
 """
 
 from utils.spark_session import get_spark_session
@@ -549,14 +561,14 @@ logger = logging.getLogger(__name__)
 def transform_and_load_dimensions():
     spark = get_spark_session("ETL-Daily")
 
-    # ----------- dim_users -----------
+    # Dimensión de usuarios
     logger.info("👤 Procesando dim_users desde clean/")
     df_users = spark.read.parquet("s3://ecommerce-lake/clean/events/") \
         .select("user_id").dropna().dropDuplicates()
     df_users.write.mode("overwrite").parquet("s3://ecommerce-lake/model/dim_users/")
     logger.info("✅ dim_users cargada")
 
-    # ----------- dim_products --------
+    # Dimensión de productos
     logger.info("📦 Procesando dim_products desde clean/")
     df_products = spark.read.parquet("s3://ecommerce-lake/clean/events/") \
         .select("product_id", "brand", "category_code", "price") \
@@ -568,11 +580,11 @@ def transform_and_load_dimensions():
 
 ---
 
-## 🔍 Validaciones: `quality/quality_checks.py`
+## 🔍 Validaciones de Calidad: `quality/quality_checks.py`
 
 ```python
 """
-Valida conteos, nulos, unicidad, esquema esperado y conteo entre capas.
+Valida cantidad mínima, nulos, unicidad, esquema esperado y pérdida de registros.
 """
 
 from pyspark.sql.functions import col, approx_count_distinct, current_date
@@ -611,11 +623,11 @@ def compare_counts_between_layers(spark):
 
 ---
 
-## 🧪 Tests: `tests/unit_tests_etl.py`
+## 🧪 Tests Automatizados: `tests/unit_tests_etl.py`
 
 ```python
 """
-Pruebas automáticas para funciones de validación de calidad.
+Pruebas unitarias para funciones de validación.
 """
 
 import unittest
@@ -658,9 +670,9 @@ if __name__ == "__main__":
 | ETL Horaria Eventos  | `run_etl.py`                | Cada hora        | `cron(0 * ? * * *)`       |
 | Carga Diaria Dim     | `transform_dimensions.py`   | Cada día (2 a.m) | `cron(0 2 * * ? *)`       |
 
-- **Tipo de Job:** Spark
-- **TempDir:** Bucket S3 para escritura temporal
-- **IAM Role:** Permisos para lectura y escritura en buckets
+- **Tipo de Job:** Spark (Glue 3.0+)
+- **TempDir:** Ruta S3 para datos temporales
+- **IAM Role:** Permisos mínimos para acceso a buckets y logs
 
 ---
 
@@ -668,7 +680,7 @@ if __name__ == "__main__":
 
 | Campo           | Tabla               | Tipo       | Descripción                                                 |
 |------------------|----------------------|------------|-------------------------------------------------------------|
-| `event_id`       | `fact_user_events`   | string     | ID único del evento (autogenerado o hash)                   |
+| `event_id`       | `fact_user_events`   | string     | ID único del evento (hash `user_id` + `product_id` + `event_time`) |
 | `event_time`     | `fact_user_events`   | timestamp  | Fecha y hora del evento                                     |
 | `event_type`     | `fact_user_events`   | string     | Tipo de evento: `view`, `cart`, `purchase`                 |
 | `user_id`        | Todas                | string     | Identificador único del usuario                             |
@@ -679,29 +691,81 @@ if __name__ == "__main__":
 | `user_session`   | `fact_user_events`   | string     | ID de sesión de navegación del usuario                      |
 | `hour_of_day`    | `fact_user_events`   | int        | Hora del evento (0 a 23)                                    |
 | `day_of_week`    | `fact_user_events`   | int        | Día de la semana (1=domingo, 7=sábado)                      |
-| `event_date`     | Todas                | date       | Fecha del evento (para particionar en S3)                   |
+| `event_date`     | Todas                | date       | Fecha del evento (para particionado)                        |
 
 
-## 🔁 Reproducibilidad y Mantenibilidad
-
-- **Particionado por `event_date`**
-- **Logs estructurados** y trazables
-- **Código versionado y testeado**
-- **Parámetros reutilizables**
-- Compatible con **AWS Glue, Airflow, Step Functions**
+---
+Muy bien, este **Paso 5** es clave para mostrar tu **capacidad de abstracción, diseño para escalabilidad** y pensamiento arquitectónico. Ya tienes los cuatro escenarios que Nequi pide, y están bien cubiertos. Ahora te propongo una **versión mejorada y más desarrollada**, con una redacción más técnica, profesional y visualmente clara, que aporte contexto, decisiones justificadas y posibles tecnologías específicas.
 
 ---
 
-## 🧩 Paso 5: Escenarios de Escalabilidad y Arquitectura Alternativa
+# 🧩 Paso 5: Redacción Final y Escenarios de Escalabilidad
 
-- **📈 Si los datos crecieran 100x:**  
-  Escalaría Glue con Spark más nodos, usaria Redshift Spectrum o EMR para analítica distribuida. Controlaría particionamiento en S3 por `event_date`.
+## 🧱 ¿Por qué se eligió esta arquitectura?
 
-- **⏱ Si las tuberías se ejecutaran diariamente en una ventana de tiempo específica:**  
-  Usaría AWS Glue triggers + workflows + monitoreo con CloudWatch y alertas por SNS.
+La arquitectura fue diseñada con base en principios de **simplicidad, escalabilidad y modularidad**:
 
-- **👥 Si más de 100 usuarios funcionales accedieran a la BD:**  
-  Implementaría Redshift + Amazon SSO + rol de acceso y políticas IAM controladas por recurso.
+- **Serverless & costo-efectiva:** Uso de Glue + Athena elimina la necesidad de administrar infraestructura.
+- **Separación de responsabilidades:** Modelo OLTP para captura operativa y Data Lake para análisis.
+- **Optimización por capas (raw-clean-model):** Mejora el control de calidad y permite trazabilidad.
+- **Particionado y formato columnar (Parquet):** Aumenta el rendimiento analítico y reduce costos de lectura.
+- **CDC con DMS:** Habilita replicación continua desde Aurora sin afectar su rendimiento transaccional.
 
-- **⚡ Si se requiere analítica en tiempo real:**  
-  Cambiaría de arquitectura batch a **Kinesis Data Streams** + **Lambda + Firehose** + **Athena o Redshift Streaming**.
+---
+
+## 🚀 Escenarios de Escalabilidad y Arquitectura Alternativa
+
+### 📈 1. Si los datos se incrementaran en 100x
+
+> **Solución:**  
+> - Glue escalaría horizontalmente con Spark, pero si los datos exceden esa capacidad, se puede migrar el procesamiento a **Amazon EMR** o **Databricks sobre AWS**.  
+> - A nivel de consulta, **Redshift Spectrum** o **Athena con particionado fino** (`event_date`, `event_type`, `category`) permitirían analizar eficientemente millones de registros por día.
+> - Se puede habilitar **compresión ZSTD** y bucketing para mejorar rendimiento en S3.
+
+---
+
+### ⏱ 2. Si las tuberías se ejecutaran diariamente en una ventana específica
+
+> **Solución:**  
+> - Se usarían **Workflows y Triggers en AWS Glue** con dependencias entre jobs.  
+> - **Ventanas programadas** vía `cron` y alertas mediante **Amazon CloudWatch + SNS**.
+> - Se integraría con **AWS Step Functions** para orquestación visual y lógica condicional (p.ej., solo ejecutar si hay nuevos datos en `raw/`).
+
+---
+
+### 👥 3. Si más de 100 usuarios funcionales accedieran a los datos
+
+> **Solución:**  
+> - Migración de consultas a **Amazon Redshift** como almacén analítico compartido.  
+> - Configuración de **grupos de usuarios y roles con Amazon SSO / IAM** para control granular.  
+> - Redshift permite cargas desde S3 (`COPY`) y consultas desde Spectrum si se quiere mantener el Data Lake como fuente principal.
+
+---
+
+### ⚡ 4. Si se requiere analítica en tiempo real
+
+> **Solución:**  
+> - Arquitectura pasaría de batch a streaming:  
+>   - **Amazon Kinesis Data Streams** o **MSK (Kafka)** para captura en tiempo real.  
+>   - **Lambda + Firehose** para procesar y almacenar en **S3 (raw_stream/)** o escribir directo a Redshift Streaming.  
+>   - Consultas en tiempo casi real con **Athena**, o incluso dashboards sobre **Amazon OpenSearch**.
+> - Procesamiento complejo con **Apache Flink** sobre Kinesis para cálculos por ventana de tiempo o enriquecimiento de eventos.
+
+---
+
+## 🧪 Reproducibilidad y escalabilidad
+
+- Todos los scripts ETL están modularizados, versionados y parametrizados por fecha.
+- La infraestructura puede ser gestionada con Terraform o CloudFormation para despliegue automatizado.
+- Pruebas unitarias garantizan confiabilidad ante cambios de lógica o datos.
+
+---
+
+## ✅ Conclusión
+
+La solución propuesta está pensada para un entorno empresarial real, aplicando principios de arquitectura moderna de datos:
+
+- **Escalable**, **automatizable**, **analizable**.
+- Listo para evolucionar a tiempo real o big data sin rediseño desde cero.
+- Compatible con herramientas modernas de BI, ciencia de datos y monitoreo.
+- Adaptado al stack tecnológico de AWS con foco en performance y bajo costo.
