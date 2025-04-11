@@ -319,108 +319,127 @@ La solución cumple con las mejores prácticas de AWS para arquitectura analíti
 
 ---
 
-## 🧩 Paso 4: Construcción del ETL
+# 🧩 Paso 4: Construcción del Pipeline ETL
 
-Este paso implementa una **pipeline ETL modular y escalable** que procesa eventos de comportamiento de usuarios desde Aurora PostgreSQL (vía AWS DMS) hacia un modelo analítico en S3 en formato Parquet. Se ejecuta cada hora para tablas de hechos y diariamente para dimensiones maestras.
+Esta etapa implementa el procesamiento de datos desde una arquitectura OLTP en Aurora PostgreSQL (vía CDC con AWS DMS) hasta un modelo analítico en S3 en formato Parquet, listo para consultas en Athena o visualizaciones en Power BI/QuickSight.
 
----
-
-## ⚙️ Arquitectura del Proceso
-
-```
-Aurora PostgreSQL (OLTP)
-   ↓ (CDC via AWS DMS)
-S3 Bucket (raw/)
-   ↓ (PySpark en AWS Glue)
-S3 (clean/, model/)
-   ↓
-Athena / Power BI / QuickSight
-```
+El pipeline procesa eventos de usuarios y actualiza dimensiones clave, garantizando consistencia, validaciones de calidad, y rendimiento.
 
 ---
 
-## 📁 Estructura del Proyecto ETL
+## 🏗️ Arquitectura Técnica
+
+```
+App móvil → Aurora PostgreSQL
+              ↓ (CDC con AWS DMS)
+       S3 (raw/)
+              ↓ (PySpark en AWS Glue)
+       S3 (model/fact_user_events, dim_*)
+              ↓
+Athena / QuickSight / Power BI
+```
+
+---
+
+## 🧾 Modelo OLTP en Aurora PostgreSQL
+
+El modelo relacional de origen en Aurora PostgreSQL está totalmente normalizado. Las tablas relevantes para el pipeline ETL incluyen:
+
+### 🎯 EVENTOS (`event_id`)
+- Relaciona sesiones, productos y usuarios
+- Contiene `event_type` (ENUM: `view`, `cart`, `purchase`), `event_time`, `price`
+
+### 📲 SESIONES (`session_id`)
+- Asociadas a un `user_id`
+- Incluye dispositivo, canal, `started_at`
+
+### 🛍️ PRODUCTOS (`product_id`)
+- Relaciona categorías y marcas
+- Contiene `price`, `stock`, etc.
+
+### 🧑‍💼 USUARIOS (`user_id`)
+- Datos básicos: `name`, `email`, `created_at`
+
+Este modelo permite trazar todo el flujo desde el usuario hasta la compra, y es replicado vía **AWS DMS (CDC)** hacia la capa `raw/` en S3.
+
+---
+
+## 🔁 Frecuencia de Procesamiento
+
+| Tabla               | Frecuencia | Detalle                                            |
+|---------------------|------------|----------------------------------------------------|
+| `fact_user_events`  | Cada hora  | Microlote → sobrescribe partición `event_date=HOY` |
+| `dim_users`         | Diaria     | Carga completa desde eventos                       |
+| `dim_products`      | Diaria     | Carga completa desde eventos                       |
+
+---
+
+## 🗂️ Estructura del Repositorio
 
 ```bash
 /etl/
 ├── extract/
-│   └── extract_from_s3.py
+│   └── extract_from_s3.py              # Lectura de eventos del día
 ├── transform/
-│   ├── clean_and_transform_events.py
-│   └── transform_dimensions.py
+│   ├── clean_and_transform_events.py   # Limpieza y validación de eventos
+│   └── transform_dimensions.py         # Carga diaria de usuarios y productos
 ├── load/
-│   └── load_to_model.py
+│   └── load_to_model.py                # Escritura en formato Parquet particionado
 ├── quality/
-│   └── quality_checks.py
-├── tests/
-│   └── unit_tests_etl.py
+│   └── quality_checks.py               # Validaciones generales
 ├── utils/
-│   └── spark_session.py
-├── run_etl.py                          # Orquestador del proceso completo
-├── data_dictionary.md
-└── requirements.txt
+│   └── spark_session.py                # Instancia de Spark para Glue/local
+├── tests/
+│   └── unit_tests_etl.py               # Pruebas unitarias
+└── run_etl.py                          # Orquestador del proceso horario
 ```
 
 ---
 
-## 🧠 Orquestador Principal
+## ✅ Ejecución ETL Horaria
 
-**Archivo:** `run_etl.py`
+### `run_etl.py`
 
 ```python
-# run_etl.py
-
 """
-Orquesta la ejecución completa del pipeline ETL:
-1. Extrae datos de eventos desde S3/raw
-2. Aplica limpieza y transformación
-3. Carga resultados en S3/model particionado
+Ejecuta la ETL cada hora:
+1. Extrae eventos del día desde raw/
+2. Limpia, transforma y valida
+3. Carga partición del día a model/
+4. Compara conteos raw vs model
 """
 
 from extract.extract_from_s3 import extract_events
 from transform.clean_and_transform_events import clean_transform
 from load.load_to_model import load_events
+from quality.quality_checks import compare_counts_between_layers
 from utils.spark_session import get_spark_session
 import logging
 
-# Configuración de logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     try:
-        logger.info("🚀 Iniciando pipeline ETL completo...")
-
-        # Inicializar sesión de Spark
-        spark = get_spark_session("ETL-Runner")
-
-        # Paso 1: Extracción
+        logger.info("🚀 Iniciando ETL de eventos (horaria)")
+        spark = get_spark_session("ETL-Hourly")
         df_raw = extract_events()
-
-        # Paso 2: Transformación
         df_transformed = clean_transform(df_raw)
-
-        # Paso 3: Carga
         load_events(df_transformed)
-
-        logger.info("✅ ETL ejecutado exitosamente.")
-
+        compare_counts_between_layers(spark)
+        logger.info("✅ ETL completada correctamente")
     except Exception as e:
-        logger.error(f"❌ Error en la ejecución del ETL: {str(e)}")
+        logger.error(f"❌ Error en la ETL: {e}")
         raise
 ```
 
 ---
 
-## 1️⃣ Extracción de Datos
-
-**Archivo:** `extract/extract_from_s3.py`
+### `extract/extract_from_s3.py`
 
 ```python
-# extract_from_s3.py
-
 """
-Carga los datos de eventos desde la capa raw en S3 y filtra los del día actual.
+Extrae eventos del día actual desde la capa raw/ en S3.
 """
 
 from utils.spark_session import get_spark_session
@@ -432,76 +451,48 @@ logger = logging.getLogger(__name__)
 
 def extract_events():
     spark = get_spark_session("ExtractEvents")
-
-    logger.info("📦 Leyendo datos desde S3: raw/events")
+    logger.info("📥 Extrayendo eventos de S3/raw/")
     df = spark.read.parquet("s3://ecommerce-lake/raw/events/")
-
-    # Filtra solo los eventos del día actual (etl horaria)
-    df_today = df.filter(df.event_date == current_date())
-
-    logger.info(f"✅ Registros leídos para hoy: {df_today.count()}")
-    return df_today
+    return df.filter(df.event_date == current_date())
 ```
 
 ---
 
-## 2️⃣ Transformación y Limpieza
-
-**Archivo:** `transform/clean_and_transform_events.py`
+### `transform/clean_and_transform_events.py`
 
 ```python
-# clean_and_transform_events.py
-
 """
-Aplica limpieza, enriquecimiento y validaciones de calidad a los datos extraídos.
+Limpia eventos, elimina duplicados, filtra precios, imputa datos y agrega campos temporales.
 """
 
 from pyspark.sql.functions import col, hour, dayofweek
-from quality.quality_checks import check_row_counts, check_nulls
+from quality.quality_checks import check_row_counts, check_nulls, check_uniqueness
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def clean_transform(df):
-    logger.info("🧹 Iniciando limpieza y transformación...")
+    logger.info("🧼 Iniciando limpieza de eventos")
+    df = df.dropDuplicates().filter(col("price") > 0)
+    df = df.fillna({"brand": "unknown", "category_code": "unknown"})
+    df = df.filter(col("user_session").isNotNull())
+    df = df.withColumn("hour_of_day", hour("event_time")) \
+           .withColumn("day_of_week", dayofweek("event_time"))
 
-    # Elimina duplicados exactos
-    df_clean = df.dropDuplicates()
-
-    # Filtra precios inválidos
-    df_clean = df_clean.filter(col("price") > 0)
-
-    # Imputación de valores nulos
-    df_clean = df_clean.fillna({
-        "brand": "unknown",
-        "category_code": "unknown"
-    }).filter(col("user_session").isNotNull())
-
-    # Enriquecimiento de datos
-    df_transformed = df_clean \
-        .withColumn("hour_of_day", hour("event_time")) \
-        .withColumn("day_of_week", dayofweek("event_time"))
-
-    # Controles de calidad
-    check_row_counts(df_transformed, min_expected=10000)
-    check_nulls(df_transformed, ["event_time", "event_type", "user_id", "product_id"])
-
-    logger.info("✅ Transformación completada exitosamente.")
-    return df_transformed
+    check_row_counts(df, 10000)
+    check_nulls(df, ["event_time", "event_type", "user_id", "product_id"])
+    check_uniqueness(df, "event_id")
+    return df
 ```
 
 ---
 
-## 3️⃣ Carga de Datos
-
-**Archivo:** `load/load_to_model.py`
+### `load/load_to_model.py`
 
 ```python
-# load_to_model.py
-
 """
-Escribe los datos limpios y transformados en formato Parquet particionado por fecha.
+Escribe eventos en model/fact_user_events/ particionando por event_date.
 """
 
 import logging
@@ -509,77 +500,132 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def load_events(df_transformed):
-    output_path = "s3://ecommerce-lake/model/fact_user_events/"
-
-    logger.info(f"💾 Escribiendo datos a: {output_path}")
-    df_transformed.write.mode("overwrite") \
-        .partitionBy("event_date") \
-        .parquet(output_path)
-
-    logger.info("✅ Carga exitosa en capa model.")
+def load_events(df):
+    path = "s3://ecommerce-lake/model/fact_user_events/"
+    logger.info(f"💾 Guardando eventos en {path}")
+    df.write.mode("overwrite").partitionBy("event_date").parquet(path)
 ```
 
 ---
 
-## 🧪 Validaciones de Calidad
+## 📚 Carga de Dimensiones Diarias
 
-**Archivo:** `quality/quality_checks.py`
+### `transform/transform_dimensions.py`
 
 ```python
-# quality_checks.py
-
 """
-Funciones para validar integridad de datos:
-- Conteo mínimo
-- Nulls
-- Esquema
+Carga completa de dim_users y dim_products (una vez al día).
 """
 
-from pyspark.sql.functions import col
+from utils.spark_session import get_spark_session
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def transform_and_load_dimensions():
+    spark = get_spark_session("ETL-Daily")
+
+    # ----------- dim_users -----------
+    logger.info("👤 Procesando dim_users")
+    df_users = spark.read.parquet("s3://ecommerce-lake/raw/events/") \
+        .select("user_id").dropna().dropDuplicates()
+    df_users.write.mode("overwrite").parquet("s3://ecommerce-lake/model/dim_users/")
+    logger.info("✅ dim_users cargada")
+
+    # ----------- dim_products --------
+    logger.info("📦 Procesando dim_products")
+    df_products = spark.read.parquet("s3://ecommerce-lake/raw/events/") \
+        .select("product_id", "brand", "category_code", "price") \
+        .dropna(subset=["product_id", "price"]).dropDuplicates(["product_id"])
+    df_products = df_products.fillna({"brand": "unknown", "category_code": "unknown"})
+    df_products.write.mode("overwrite").parquet("s3://ecommerce-lake/model/dim_products/")
+    logger.info("✅ dim_products cargada")
+```
+
+---
+
+## 🔍 Validaciones: `quality/quality_checks.py`
+
+```python
+"""
+Valida conteos, nulos, unicidad y compara conteo entre capas.
+"""
+
+from pyspark.sql.functions import col, approx_count_distinct, current_date
 
 def check_row_counts(df, min_expected):
     count = df.count()
-    assert count >= min_expected, f"❌ Fila insuficiente: {count} < {min_expected}"
+    assert count >= min_expected, f"❌ Solo {count} registros, mínimo requerido: {min_expected}"
 
 def check_nulls(df, cols):
-    for col_name in cols:
-        nulls = df.filter(col(col_name).isNull()).count()
-        assert nulls == 0, f"❌ Nulls en columna {col_name}: {nulls}"
+    for col in cols:
+        nulls = df.filter(col(col).isNull()).count()
+        assert nulls == 0, f"❌ Nulls encontrados en columna {col}: {nulls}"
+
+def check_uniqueness(df, col_name):
+    total = df.count()
+    unique = df.select(approx_count_distinct(col_name)).collect()[0][0]
+    assert unique == total, f"❌ Duplicados detectados en {col_name}"
+
+def compare_counts_between_layers(spark):
+    today = current_date()
+    raw_count = spark.read.parquet("s3://ecommerce-lake/raw/events/") \
+        .filter(col("event_date") == today).count()
+    model_count = spark.read.parquet("s3://ecommerce-lake/model/fact_user_events/") \
+        .filter(col("event_date") == today).count()
+    assert model_count >= raw_count * 0.98, \
+        f"❌ Pérdida >2% entre RAW ({raw_count}) y MODEL ({model_count})"
 ```
 
 ---
 
-## 🧪 Pruebas Unitarias
-
-**Archivo:** `tests/unit_tests_etl.py`
+## 🧪 Tests: `tests/unit_tests_etl.py`
 
 ```python
-# unit_tests_etl.py
-
 """
-Pruebas automáticas para validar las funciones de calidad de datos.
+Pruebas automáticas para las funciones de validación de calidad.
 """
 
 import unittest
 from quality import quality_checks
 from pyspark.sql import SparkSession
 
-class TestETLQuality(unittest.TestCase):
+class TestETL(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.spark = SparkSession.builder.master("local[*]").appName("UnitTest").getOrCreate()
-        cls.df = cls.spark.createDataFrame([(1, "view")], ["user_id", "event_type"])
+        cls.spark = SparkSession.builder.master("local[*]").appName("ETLTest").getOrCreate()
 
-    def test_row_count_pass(self):
-        quality_checks.check_row_counts(self.df, 1)
+    def test_check_row_counts(self):
+        df = self.spark.createDataFrame([(1,)], ["id"])
+        quality_checks.check_row_counts(df, 1)
 
-    def test_null_check(self):
-        quality_checks.check_nulls(self.df, ["user_id"])
+    def test_check_nulls(self):
+        df = self.spark.createDataFrame([(1,), (2,)], ["id"])
+        quality_checks.check_nulls(df, ["id"])
 
-if __name__ == '__main__':
+    def test_check_uniqueness(self):
+        df = self.spark.createDataFrame([(1,), (1,)], ["event_id"])
+        with self.assertRaises(AssertionError):
+            quality_checks.check_uniqueness(df, "event_id")
+
+if __name__ == "__main__":
     unittest.main()
 ```
+
+---
+
+## ☁️ Ejecución en AWS Glue
+
+| Job                  | Script                      | Frecuencia       | Trigger Cron             |
+|----------------------|-----------------------------|------------------|---------------------------|
+| ETL Horaria Eventos  | `run_etl.py`                | Cada hora        | `cron(0 * ? * * *)`       |
+| Carga Diaria Dim     | `transform_dimensions.py`   | Cada día (2 a.m) | `cron(0 2 * * ? *)`       |
+
+- **Tipo de Job:** Spark
+- **Glue version:** 3.0+
+- **TempDir:** apuntar a un bucket S3
+- **IAM Role:** con acceso a S3 de lectura y escritura
 
 ---
 
