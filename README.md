@@ -81,7 +81,7 @@ Este proyecto representa una solución de datos para un **eCommerce** que busca 
 
 ---
 
-## 📊 Paso 2: Exploración y Evaluación de Datos (EDA)
+## 🧩 Paso 2: Exploración y Evaluación de Datos (EDA)
 
 Para analizar un dataset de más de **66 millones de registros**, se utilizó **PySpark** como motor de procesamiento distribuido. Gracias a su escalabilidad, se pudieron ejecutar transformaciones complejas y validaciones sin saturar el entorno de desarrollo.
 
