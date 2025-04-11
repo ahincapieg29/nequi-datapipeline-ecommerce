@@ -599,7 +599,6 @@ if __name__ == "__main__":
 | Carga Diaria Dim     | `transform_dimensions.py`   | Cada día (2 a.m) | `cron(0 2 * * ? *)`       |
 
 - **Tipo de Job:** Spark
-- **Glue version:** 3.0+
 - **TempDir:** apuntar a un bucket S3
 - **IAM Role:** con acceso a S3 de lectura y escritura
 
@@ -617,7 +616,6 @@ if __name__ == "__main__":
 
 ## 📘 Diccionario de Datos
 
-Ver archivo [`data_dictionary.md`](./data_dictionary.md) para la descripción completa del modelo `fact_user_events` y sus dimensiones.
 
 ---
 
