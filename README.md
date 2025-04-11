@@ -274,9 +274,9 @@ Una vez en S3, se aplica un proceso ETL para construir un modelo de datos orient
 | Visualización              | Amazon QuickSight, Power BI         | Integración directa con Athena y Redshift                           |
 | Formato de almacenamiento  | Parquet                             | Columnar, comprimido, altamente eficiente en análisis               |
 
----
-
-Perfecto, aquí tienes la sección actualizada del README con una **propuesta de actualización cada hora**, ideal para balancear **costo, rendimiento y frescura** de los datos tanto para BI como Ciencia de Datos:
+- AWS Glue fue elegido sobre Lambda + Step Functions porque el volumen de datos (66M+) y las transformaciones requeridas (join, filtrado, particionado) se benefician del procesamiento distribuido con PySpark.
+- Aurora PostgreSQL permite escalabilidad transaccional con réplicas, ideal para integración con CDC (Change Data Capture) usando AWS DMS.
+- S3 es el almacenamiento óptimo para un Data Lake escalable, y permite separación por capas (`raw`, `clean`, `model`) con esquemas evolutivos.
 
 ---
 
