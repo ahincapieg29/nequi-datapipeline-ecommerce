@@ -60,7 +60,7 @@ Este proyecto representa una solución de datos para un **eCommerce** que busca 
 - Integración entre equipos de marketing, operaciones, BI y ciencia de datos  
 - Toma de decisiones basada en datos reales del comportamiento de usuarios  
 
-#### 📊 Business Intelligence (BI)
+#### 🧪 Business Intelligence (BI)
 
 - Embudo de conversión: `view → cart → purchase`  
 - Ranking de productos con mayor visualización vs. menor conversión  
@@ -317,13 +317,9 @@ Esta arquitectura permite:
 
 La solución cumple con las mejores prácticas de AWS para arquitectura analítica moderna, aplicando herramientas serverless, formatos columnarizados, y un modelo escalable sin dependencias innecesarias.
 
-## 🧩 Paso 4: Construcción del ETL
-
-¡Claro! A continuación te dejo el **README completo del Paso 4** con toda la explicación profesional, estructura clara, código modular, y **todos los scripts comentados línea por línea** para que luzca impecable en tu entrega. Este README está listo para agregarlo al repositorio y demostrar dominio total de ingeniería de datos en AWS.
-
 ---
 
-# 🧩 Paso 4: Construcción del Pipeline ETL
+## 🧩 Paso 4: Construcción del ETL
 
 Este paso implementa una **pipeline ETL modular y escalable** que procesa eventos de comportamiento de usuarios desde Aurora PostgreSQL (vía AWS DMS) hacia un modelo analítico en S3 en formato Parquet. Se ejecuta cada hora para tablas de hechos y diariamente para dimensiones maestras.
 
@@ -602,8 +598,6 @@ if __name__ == '__main__':
 Ver archivo [`data_dictionary.md`](./data_dictionary.md) para la descripción completa del modelo `fact_user_events` y sus dimensiones.
 
 ---
-
-¿Te gustaría que ahora preparemos también el `data_dictionary.md` completo y claro? ¿O armamos un ejemplo de cómo se vería esto desplegado con AWS Glue Job + Trigger?
 
 ## 🧩 Paso 5: Escenarios de Escalabilidad y Arquitectura Alternativa
 
