@@ -199,8 +199,8 @@ La base de datos transaccional se diseñó utilizando un modelo **normalizado** 
 - **PRODUCTS**  
   - `product_id` (Primary Key)  
   - `name`  
-  - `brand_id` (FK → BRANDS.brand_id)  
-  - `category_id` (FK → CATEGORIES.category_id)  
+  - `brand_id` (Foreign Key → BRANDS.brand_id)  
+  - `category_id` (Foreign Key → CATEGORIES.category_id)  
   - `price`  
   - `stock`  
 
@@ -319,20 +319,6 @@ La solución cumple con las mejores prácticas de AWS para arquitectura analíti
 
 ## 🧩 Paso 4: Construcción del ETL
 
-Estructurado en módulos:
-
-```bash
-src/
-├── etl/
-│   ├── extract.py
-│   ├── transform.py
-│   └── load.py
-├── utils/
-│   ├── logger.py          # Configuración central de logs
-│   └── exceptions.py      # Manejo de errores
-└── config/
-    └── settings.py        # Paths y parámetros globales
-```
 ## 🧩 Paso 5: Escenarios de Escalabilidad y Arquitectura Alternativa
 
 - **📈 Si los datos crecieran 100x:**  
