@@ -642,7 +642,7 @@ if __name__ == "__main__":
 
 - **Tipo de Job:** Spark
 - **TempDir:** Bucket S3 para escritura temporal
-- **IAM Role:** Permisos para lectura y escritura en buckets `raw/`, `clean/`, `model/`
+- **IAM Role:** Permisos para lectura y escritura en buckets
 
 ---
 
