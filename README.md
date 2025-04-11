@@ -270,7 +270,7 @@ Una vez en S3, se aplica un proceso ETL para construir un modelo de datos orient
 | Almacenamiento             | Amazon S3                           | Económico, escalable, nativo para Data Lake                         |
 | Transformación             | AWS Glue + PySpark                  | Procesamiento distribuido sobre alto volumen                        |
 | Organización de datos      | Data Lake por capas (raw-clean-model)| Mejora trazabilidad, modularidad y control                          |
-| Consulta analítica         | Amazon Athena                       | SQL serverless, bajo costo, ideal para exploración y BI             |
+| Consulta analítica         | Athena                              | SQL serverless, bajo costo, ideal para exploración y BI             |
 | Visualización              | Amazon QuickSight, Power BI         | Integración directa con Athena y Redshift                           |
 | Formato de almacenamiento  | Parquet                             | Columnar, comprimido, altamente eficiente en análisis               |
 
